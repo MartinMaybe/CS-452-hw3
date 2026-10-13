@@ -149,6 +149,38 @@ static void child(CommandRep r, int fg) {
   _exit(127);
 }
 
+
+static void restoreRedirect(int oin, int oout) {
+  fflush(stdout);   // push builtin output into the file BEFORE switching back
+  if (oin>=0)  { dup2(oin,STDIN_FILENO);   close(oin); }
+  if (oout>=0) { dup2(oout,STDOUT_FILENO); close(oout); }
+}
+
+// Returns 0 on success. On failure, warns and leaves fds as they were.
+static int redirectShell(CommandRep r, int *oin, int *oout) {
+  *oin=*oout=-1;
+  if (r->from) {
+    int fd=open(r->from,O_RDONLY);
+    if (fd<0) { WARN("%s: %s",r->from,strerror(errno)); return -1; }
+    *oin=dup(STDIN_FILENO);
+    dup2(fd,STDIN_FILENO);
+    close(fd);
+  }
+  if (r->to) {
+    int fd=open(r->to,O_WRONLY|O_CREAT|O_TRUNC,0666);
+    if (fd<0) {
+      WARN("%s: %s",r->to,strerror(errno));
+      restoreRedirect(*oin,-1);
+      return -1;
+    }
+    fflush(stdout);
+    *oout=dup(STDOUT_FILENO);
+    dup2(fd,STDOUT_FILENO);
+    close(fd);
+  }
+  return 0;
+}
+
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
 			int *jobbed, int *eof, int fg) {
   CommandRep r=command;
@@ -193,35 +225,4 @@ extern void freeCommand(Command command) {
 extern void freestateCommand() {
   if (cwd) free(cwd);
   if (owd) free(owd);
-}
-
-static void restoreRedirect(int oin, int oout) {
-  fflush(stdout);   // push builtin output into the file BEFORE switching back
-  if (oin>=0)  { dup2(oin,STDIN_FILENO);   close(oin); }
-  if (oout>=0) { dup2(oout,STDOUT_FILENO); close(oout); }
-}
-
-// Returns 0 on success. On failure, warns and leaves fds as they were.
-static int redirectShell(CommandRep r, int *oin, int *oout) {
-  *oin=*oout=-1;
-  if (r->from) {
-    int fd=open(r->from,O_RDONLY);
-    if (fd<0) { WARN("%s: %s",r->from,strerror(errno)); return -1; }
-    *oin=dup(STDIN_FILENO);
-    dup2(fd,STDIN_FILENO);
-    close(fd);
-  }
-  if (r->to) {
-    int fd=open(r->to,O_WRONLY|O_CREAT|O_TRUNC,0666);
-    if (fd<0) {
-      WARN("%s: %s",r->to,strerror(errno));
-      restoreRedirect(*oin,-1);
-      return -1;
-    }
-    fflush(stdout);
-    *oout=dup(STDOUT_FILENO);
-    dup2(fd,STDOUT_FILENO);
-    close(fd);
-  }
-  return 0;
 }
