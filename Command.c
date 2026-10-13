@@ -4,6 +4,8 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "Command.h"
 #include "error.h"
@@ -11,6 +13,8 @@
 typedef struct {
   char *file;
   char **argv;
+  char *from;
+  char *to;
 } *CommandRep;
 
 #define BIARGS CommandRep r, int *eof, Jobs jobs
@@ -55,24 +59,32 @@ BIDEFN(cd) {
     ERROR("chdir() failed"); // warn
 }
 
-static int builtin(BIARGS) {
-  typedef struct {
-    char *s;
-    void (*f)(BIARGS);
-  } Builtin;
-  static const Builtin builtins[]={
-    BIENTRY(exit),
-    BIENTRY(pwd),
-    BIENTRY(cd),
-    {0,0}
-  };
-  int i;
-  for (i=0; builtins[i].s; i++)
-    if (!strcmp(r->file,builtins[i].s)) {
-      builtins[i].f(r,eof,jobs);
-      return 1;
-    }
+
+typedef struct {
+  char *s;
+  void (*f)(BIARGS);
+} Builtin;
+
+static const Builtin builtins[]={
+  BIENTRY(exit),
+  BIENTRY(pwd),
+  BIENTRY(cd),
+  {0,0}
+};
+
+static const Builtin *findBuiltin(CommandRep r) {
+  for (int i=0; builtins[i].s; i++)
+    if (!strcmp(r->file,builtins[i].s))
+      return &builtins[i];
   return 0;
+}
+
+static int builtin(BIARGS) {
+  const Builtin *b=findBuiltin(r);
+  if (!b)
+    return 0;
+  b->f(r,eof,jobs);
+  return 1;
 }
 
 static char **getargs(T_words words) {
@@ -95,17 +107,35 @@ static char **getargs(T_words words) {
   return argv;
 }
 
-extern Command newCommand(T_words words) {
+extern Command newCommand(T_words words, char *from, char *to) {
   CommandRep r=(CommandRep)malloc(sizeof(*r));
   if (!r)
     ERROR("malloc() failed");
   r->argv=getargs(words);
   r->file=r->argv[0];
+  r->from=from ? strdup(from) : 0;
+  r->to=to ? strdup(to) : 0;
   return r;
+}
+
+static void redirectChild(CommandRep r) {
+  if (r->from) {
+    int fd=open(r->from,O_RDONLY);
+    if (fd<0) { perror(r->from); _exit(1); }
+    dup2(fd,STDIN_FILENO);
+    close(fd);
+  }
+  if (r->to) {
+    int fd=open(r->to,O_WRONLY|O_CREAT|O_TRUNC,0666);
+    if (fd<0) { perror(r->to); _exit(1); }
+    dup2(fd,STDOUT_FILENO);
+    close(fd);
+  }
 }
 
 static void child(CommandRep r, int fg) {
   int eof=0;
+  redirectChild(r);
   Jobs jobs=newJobs();
   if (builtin(r,&eof,jobs)) {
     freeJobs(jobs);
@@ -150,10 +180,43 @@ extern void freeCommand(Command command) {
   while (*argv)
     free(*argv++);
   free(r->argv);
+  if (r->from) free(r->from);
+  if (r->to) free(r->to);
   free(r);
 }
 
 extern void freestateCommand() {
   if (cwd) free(cwd);
   if (owd) free(owd);
+}
+
+static void restoreRedirect(int oin, int oout) {
+  fflush(stdout);   // push builtin output into the file BEFORE switching back
+  if (oin>=0)  { dup2(oin,STDIN_FILENO);   close(oin); }
+  if (oout>=0) { dup2(oout,STDOUT_FILENO); close(oout); }
+}
+
+// Returns 0 on success. On failure, warns and leaves fds as they were.
+static int redirectShell(CommandRep r, int *oin, int *oout) {
+  *oin=*oout=-1;
+  if (r->from) {
+    int fd=open(r->from,O_RDONLY);
+    if (fd<0) { WARN("%s: %s",r->from,strerror(errno)); return -1; }
+    *oin=dup(STDIN_FILENO);
+    dup2(fd,STDIN_FILENO);
+    close(fd);
+  }
+  if (r->to) {
+    int fd=open(r->to,O_WRONLY|O_CREAT|O_TRUNC,0666);
+    if (fd<0) {
+      WARN("%s: %s",r->to,strerror(errno));
+      restoreRedirect(*oin,-1);
+      return -1;
+    }
+    fflush(stdout);
+    *oout=dup(STDOUT_FILENO);
+    dup2(fd,STDOUT_FILENO);
+    close(fd);
+  }
+  return 0;
 }

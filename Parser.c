@@ -53,12 +53,21 @@ static T_words p_words() {
 }
 
 static T_command p_command() {
-  T_words words=0;
-  words=p_words();
+  T_words words=p_words();
   if (!words)
     return 0;
   T_command command=new_command();
   command->words=words;
+  if (eat("<")) {
+    command->words=p_word();
+    if (!command->from)
+    ERROR("missing file after <");
+  }
+  if (eat(">")) {
+    command->to=p_word();
+    if (!command->to)
+    ERROR("missing file after >");
+  }
   return command;
 }
 
@@ -140,6 +149,8 @@ static void f_command(T_command t) {
   if (!t)
     return;
   f_words(t->words);
+  f_word(t->from);
+  f_word(t->to);
   free(t);
 }
 
