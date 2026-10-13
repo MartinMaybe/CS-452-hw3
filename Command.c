@@ -152,9 +152,14 @@ static void child(CommandRep r, int fg) {
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
 			int *jobbed, int *eof, int fg) {
   CommandRep r=command;
-  if (fg && builtin(r,eof,jobs))
+  if (fg && findBuiltin(r)) {
+    int oin, oout;
+    if (redirectShell(r, &oin, &oout)==0) {
+      builtin(r,eof,jobs);
+      restoreRedirect(oin, oout);
+    }
     return;
-
+  }
   fflush(stdout); // child wont get unflushed output
   int pid=fork();
   if (pid==-1) 

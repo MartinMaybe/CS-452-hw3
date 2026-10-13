@@ -46,7 +46,7 @@ static T_words p_words() {
     return 0;
   T_words words=new_words();
   words->word=word;
-  if (cmp("|") || cmp("&") || cmp(";"))
+  if (cmp("|") || cmp("&") || cmp(";") || cmp("<") || cmp(">"))
     return words;
   words->words=p_words();
   return words;
@@ -59,7 +59,7 @@ static T_command p_command() {
   T_command command=new_command();
   command->words=words;
   if (eat("<")) {
-    command->words=p_word();
+    command->from=p_word();
     if (!command->from)
     ERROR("missing file after <");
   }
