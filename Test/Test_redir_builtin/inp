@@ -1,0 +1,4 @@
+cd /tmp
+pwd > hw3_f
+echo after
+cat hw3_f

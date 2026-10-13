@@ -1,0 +1,3 @@
+echo x > /tmp/hw3_c
+cat < /tmp/hw3_c > /tmp/hw3_d
+cat /tmp/hw3_d

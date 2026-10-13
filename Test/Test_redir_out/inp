@@ -1,0 +1,2 @@
+echo hello > /tmp/hw3_a
+cat /tmp/hw3_a

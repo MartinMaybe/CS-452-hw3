@@ -1,0 +1,3 @@
+echo aaa > /tmp/hw3_e
+echo b > /tmp/hw3_e
+cat /tmp/hw3_e
