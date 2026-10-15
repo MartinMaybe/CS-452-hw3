@@ -43,11 +43,24 @@ static void execute(Pipeline pipeline, Jobs jobs, int *jobbed, int *eof) {
   r->pids=calloc(n>0?n:1,sizeof(int));
   if (!r->pids)
     ERROR("calloc() failed");
+
+  int in=-1;                         // read end feeding the next command
   for (int i=0; i<n && !*eof; i++) {
-    int pid=execCommand(deq_head_ith(r->processes,i),pipeline,jobs,jobbed,eof,r->fg);
+    int fd[2]={-1,-1};
+    if (i<n-1 && pipe(fd)==-1)
+      ERROR("pipe() failed");
+    int pid=execCommand(deq_head_ith(r->processes,i),pipeline,jobs,
+			jobbed,eof,r->fg,in,fd[1],fd[0]);
     if (pid>0)
       r->pids[r->npids++]=pid;
+    if (in>=0)                       // parent is done with these
+      close(in);
+    if (fd[1]>=0)
+      close(fd[1]);
+    in=fd[0];
   }
+  if (in>=0)                         // loop ended early
+    close(in);
 }
 
 // Return 1 if every child has been reaped, block=0 polls

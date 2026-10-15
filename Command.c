@@ -133,9 +133,20 @@ static void redirectChild(CommandRep r) {
   }
 }
 
-static void child(CommandRep r, int fg) {
+static void child(CommandRep r, int fg, int in, int out, int unused) {
+  if (unused>=0)
+    close(unused);
+  if (in>=0) {
+    dup2(in,STDIN_FILENO);
+    close(in);
+  }
+  if (out>=0) {
+    dup2(out,STDOUT_FILENO);
+    close(out);
+  }
+  redirectChild(r);           // < and > override the pipe
+
   int eof=0;
-  redirectChild(r);
   Jobs jobs=newJobs();
   if (builtin(r,&eof,jobs)) {
     freeJobs(jobs);
@@ -182,9 +193,10 @@ static int redirectShell(CommandRep r, int *oin, int *oout) {
 }
 
 extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
-			int *jobbed, int *eof, int fg) {
+			int *jobbed, int *eof, int fg,
+      int in, int out, int unused) {
   CommandRep r=command;
-  if (fg && findBuiltin(r)) {
+  if (fg && sizePipeline(pipeline)==1 && findBuiltin(r)) {
     int oin, oout;
     if (redirectShell(r, &oin, &oout)==0) {
       builtin(r,eof,jobs);
@@ -197,7 +209,7 @@ extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
   if (pid==-1) 
     ERROR("fork() failed");
   if (pid==0)
-    child(r, fg);
+    child(r, fg, in, out, unused);
   return pid; // waits
 }
 

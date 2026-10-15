@@ -9,6 +9,7 @@ core.*
 vgcore.*
 *.dSYM/
 *.log
+.history
 
 # macOS
 .DS_Store
