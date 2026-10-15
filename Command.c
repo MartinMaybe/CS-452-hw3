@@ -181,7 +181,7 @@ static int redirectShell(CommandRep r, int *oin, int *oout) {
   return 0;
 }
 
-extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
+extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
 			int *jobbed, int *eof, int fg) {
   CommandRep r=command;
   if (fg && findBuiltin(r)) {
@@ -190,7 +190,7 @@ extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
       builtin(r,eof,jobs);
       restoreRedirect(oin, oout);
     }
-    return;
+    return 0; // no child wait 
   }
   fflush(stdout); // child wont get unflushed output
   int pid=fork();
@@ -198,17 +198,7 @@ extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
     ERROR("fork() failed");
   if (pid==0)
     child(r, fg);
-  
-  if (fg) {
-    int status;
-    waitpid(pid,&status, 0);
-    return;
-  }
-
-  if (!*jobbed) {
-    *jobbed=1;
-    addJobs(jobs,pipeline);
-  }
+  return pid; // waits
 }
 
 extern void freeCommand(Command command) {

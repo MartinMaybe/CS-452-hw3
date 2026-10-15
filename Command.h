@@ -9,7 +9,7 @@ typedef void *Command;
 
 extern Command newCommand(T_words words, char *from, char *to);
 
-extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
+extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
 			int *jobbed, int *eof, int fg);
 
 extern void freeCommand(Command command);

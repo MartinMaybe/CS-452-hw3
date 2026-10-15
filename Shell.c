@@ -26,6 +26,7 @@ int main() {
   }
 
   while (!eof) {
+    reapJobs(jobs);
     char *line=readline(prompt);
     if (!line)
       break;
@@ -34,6 +35,9 @@ int main() {
     interpret(line,&eof,jobs);
     free(line);
   }
+
+  waitJobs(jobs);    
+  freeJobs(jobs);
 
   if (isatty(fileno(stdin))) {
     write_history(".history");
