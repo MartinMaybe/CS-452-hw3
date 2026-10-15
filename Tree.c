@@ -5,6 +5,7 @@
 #include "Tree.h"
 #include "error.h"
 
+// Allocates and initializes memory for specified tree nodes
 #define ALLOC(t) \
   t v=malloc(sizeof(*v)); \
   if (!v) ERROR("malloc() failed"); \

@@ -11,6 +11,7 @@ static Command i_command(T_command t);
 static void i_pipeline(T_pipeline t, Pipeline pipeline);
 static void i_sequence(T_sequence t, Sequence sequence);
 
+// Command object with its arguments and redirections
 static Command i_command(T_command t) {
   if (!t)
     return 0;
@@ -20,6 +21,8 @@ static Command i_command(T_command t) {
   return command;
 }
 
+// Pipeline object by adding each command
+// Recursively processes all commands in the pipeline
 static void i_pipeline(T_pipeline t, Pipeline pipeline) {
   if (!t)
     return;
@@ -27,6 +30,7 @@ static void i_pipeline(T_pipeline t, Pipeline pipeline) {
   i_pipeline(t->pipeline,pipeline);
 }
 
+// Sequence object containing its pipelines
 static void i_sequence(T_sequence t, Sequence sequence) {
   if (!t)
     return;
@@ -37,6 +41,7 @@ static void i_sequence(T_sequence t, Sequence sequence) {
   i_sequence(t->sequence,sequence);
 }
 
+// command sequence into an executable Sequence
 extern void interpretSequence(T_sequence s, int *eof, Jobs jobs) {
   if (!s)
     return;

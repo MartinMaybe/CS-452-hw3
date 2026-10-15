@@ -38,11 +38,13 @@ static int builtin_args(CommandRep r, int max) {
   return 0;
 }
 
+// Handles exit
 BIDEFN(exit) {
   if (builtin_args(r,0)) return;
   *eof=1;
 }
 
+// Handles pwd builtin, added warnings
 BIDEFN(pwd) {
   if (builtin_args(r,0)) return;
   char *d=getcwd(0,0);
@@ -51,6 +53,7 @@ BIDEFN(pwd) {
   free(d);
 }
 
+// Handles cd builtin, added HOME and - to return to previous directory
 BIDEFN(cd) {
   if (builtin_args(r,1)) return;
   const char *target=r->argv[1];
@@ -71,6 +74,7 @@ BIDEFN(cd) {
   owd=prev;
 }
 
+// Handles history builtin, prints them with entry numbers
 BIDEFN(history) {
   if (builtin_args(r,0)) return;
   HIST_ENTRY **l=history_list();
@@ -79,6 +83,7 @@ BIDEFN(history) {
     printf("%5d  %s\n",history_base+i,l[i]->line);
 }
 
+// Stores the builtin commands and handlers
 typedef struct {
   char *s;
   void (*f)(BIARGS);
@@ -92,6 +97,7 @@ static const Builtin builtins[]={
   {0,0}
 };
 
+// Finds command from table
 static const Builtin *findBuiltin(CommandRep r) {
   for (int i=0; builtins[i].s; i++)
     if (!strcmp(r->file,builtins[i].s))
@@ -99,6 +105,7 @@ static const Builtin *findBuiltin(CommandRep r) {
   return 0;
 }
 
+// Finds and executes command 
 static int builtin(BIARGS) {
   const Builtin *b=findBuiltin(r);
   if (!b)
@@ -107,6 +114,7 @@ static int builtin(BIARGS) {
   return 1;
 }
 
+// Allocates memory for the array and duplicates argument string
 static char **getargs(T_words words) {
   int n=0;
   T_words p=words;
@@ -127,6 +135,7 @@ static char **getargs(T_words words) {
   return argv;
 }
 
+// Creates a command structure and redirection paths, stores everything
 extern Command newCommand(T_words words, char *from, char *to) {
   CommandRep r=(CommandRep)malloc(sizeof(*r));
   if (!r)
@@ -138,6 +147,8 @@ extern Command newCommand(T_words words, char *from, char *to) {
   return r;
 }
 
+// Applies redirection in a child process
+// Exits the child process if a redirection file can't be opened
 static void redirectChild(CommandRep r) {
   if (r->from) {
     int fd=open(r->from,O_RDONLY);
@@ -153,6 +164,7 @@ static void redirectChild(CommandRep r) {
   }
 }
 
+// Configures the child's input/output file descriptor
 static void child(CommandRep r, int fg, int in, int out, int unused) {
   if (unused>=0)
     close(unused);
@@ -180,14 +192,15 @@ static void child(CommandRep r, int fg, int in, int out, int unused) {
   _exit(127);
 }
 
-
+// Restores the shell's standard input and output after redirection
 static void restoreRedirect(int oin, int oout) {
   fflush(stdout);   // push builtin output into the file BEFORE switching back
   if (oin>=0)  { dup2(oin,STDIN_FILENO);   close(oin); }
   if (oout>=0) { dup2(oout,STDOUT_FILENO); close(oout); }
 }
 
-// Returns 0 on success. On failure, warns and leaves fds as they were.
+// Returns 0 on success
+// On failure, warns and leaves fds as they were
 static int redirectShell(CommandRep r, int *oin, int *oout) {
   *oin=*oout=-1;
   if (r->from) {
@@ -212,6 +225,8 @@ static int redirectShell(CommandRep r, int *oin, int *oout) {
   return 0;
 }
 
+// Executes a command either directly or in a new child process
+// Handles redirection and process creation
 extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
 			int *jobbed, int *eof, int fg,
       int in, int out, int unused) {
@@ -233,6 +248,7 @@ extern int execCommand(Command command, Pipeline pipeline, Jobs jobs,
   return pid; // waits
 }
 
+// Frees all dynamically allocated memory associated with a command
 extern void freeCommand(Command command) {
   CommandRep r=command;
   char **argv=r->argv;

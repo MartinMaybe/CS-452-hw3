@@ -11,6 +11,8 @@
 #include "Interpreter.h"
 #include "error.h"
 
+// Initializes the shell, configures command history, prompt, enters the main input loop
+// Reaps completed background jobs, interpret commands, waits for remaining jobs
 int main() {
   int eof=0;
   Jobs jobs=newJobs();

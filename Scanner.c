@@ -12,6 +12,7 @@ typedef struct {
   char *curr;
 } *ScannerRep;
 
+// Create scanner
 extern Scanner newScanner(char *s) {
   ScannerRep r=(ScannerRep)malloc(sizeof(*r));
   if (!r)
@@ -23,6 +24,7 @@ extern Scanner newScanner(char *s) {
   return r;
 }
 
+// Free scanner
 extern void freeScanner(Scanner scan) {
   ScannerRep r=scan;
   free(r->str);
@@ -31,11 +33,13 @@ extern void freeScanner(Scanner scan) {
   free(r);
 }
 
+// Advances pointer past listed chars
 static char *thru(char *p, char *q) {
   for (; *p && strchr(q,*p); p++);
   return p;
 }
 
+// Advances pointer until specified chars
 static char *upto(char *p, char *q) {
   for (; *p && !strchr(q,*p); p++);
   return p;
@@ -44,6 +48,7 @@ static char *upto(char *p, char *q) {
 static char *wsthru(char *p) { return thru(p," \t"); }
 static char *wsupto(char *p) { return upto(p," \t"); }
 
+// Get token and store it
 extern char *nextScanner(Scanner scan) {
   ScannerRep r=scan;
   if (r->eos)
@@ -66,6 +71,7 @@ extern char *nextScanner(Scanner scan) {
   return r->curr;
 }
 
+// return token
 extern char *currScanner(Scanner scan) {
   ScannerRep r=scan;
   if (r->eos)
@@ -75,6 +81,7 @@ extern char *currScanner(Scanner scan) {
   return nextScanner(scan);
 }
 
+// token comaprison
 extern int cmpScanner(Scanner scan, char *s) {
   ScannerRep r=scan;
   currScanner(scan);
@@ -85,6 +92,7 @@ extern int cmpScanner(Scanner scan, char *s) {
   return 1;
 }
 
+// consume token
 extern int eatScanner(Scanner scan, char *s) {
   int r=cmpScanner(scan,s);
   if (r)
@@ -92,6 +100,7 @@ extern int eatScanner(Scanner scan, char *s) {
   return r;
 }
 
+// return scanning position
 extern int posScanner(Scanner scan) {
   ScannerRep r=scan;
   return (r->pos)-(r->str);

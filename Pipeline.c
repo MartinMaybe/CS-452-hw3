@@ -16,6 +16,7 @@ typedef struct {
   int npids;
 } *PipelineRep;
 
+// New pipeline empty queue
 extern Pipeline newPipeline(int fg) {
   PipelineRep r=(PipelineRep)malloc(sizeof(*r));
   if (!r)
@@ -27,16 +28,19 @@ extern Pipeline newPipeline(int fg) {
   return r;
 }
 
+// Add command to queue
 extern void addPipeline(Pipeline pipeline, Command command) {
   PipelineRep r=(PipelineRep)pipeline;
   deq_tail_put(r->processes,command);
 }
 
+// return command # in pipeline
 extern int sizePipeline(Pipeline pipeline) {
   PipelineRep r=(PipelineRep)pipeline;
   return deq_len(r->processes);
 }
 
+// Executes each command in the pipeline, connecting commands through pipes and tracking child process IDs
 static void execute(Pipeline pipeline, Jobs jobs, int *jobbed, int *eof) {
   PipelineRep r=(PipelineRep)pipeline;
   int n=sizePipeline(r);
