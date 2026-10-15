@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <readline/history.h>
 
 #include "Command.h"
 #include "error.h"
@@ -23,42 +24,60 @@ typedef struct {
 #define BIENTRY(name) {#name,BINAME(name)}
 
 static char *owd=0;
-static char *cwd=0;
+// static char *cwd=0;
 
-static void builtin_args(CommandRep r, int n) {
-  char **argv=r->argv;
-  for (n++; *argv++; n--);
-  if (n)
-    ERROR("wrong number of arguments to builtin command"); // warn
+// Returns -1 after a warning if there are more than max args
+static int builtin_args(CommandRep r, int max) {
+  int n=0;
+  while (r->argv[n+1])
+    n++;
+  if (n>max) {
+    WARN("wrong number of arguments to builtin command");
+    return -1;
+  }
+  return 0;
 }
 
 BIDEFN(exit) {
-  builtin_args(r,0);
+  if (builtin_args(r,0)) return;
   *eof=1;
 }
 
 BIDEFN(pwd) {
-  builtin_args(r,0);
-  if (!cwd)
-    cwd=getcwd(0,0);
-  printf("%s\n",cwd);
+  if (builtin_args(r,0)) return;
+  char *d=getcwd(0,0);
+  if (!d) { WARN("getcwd: %s",strerror(errno)); return; }
+  printf("%s\n",d);
+  free(d);
 }
 
 BIDEFN(cd) {
-  builtin_args(r,1);
-  if (strcmp(r->argv[1],"-")==0) {
-    char *twd=cwd;
-    cwd=owd;
-    owd=twd;
-  } else {
-    if (owd) free(owd);
-    owd=cwd;
-    cwd=strdup(r->argv[1]);
+  if (builtin_args(r,1)) return;
+  const char *target=r->argv[1];
+  if (!target) {
+    target=getenv("HOME");
+    if (!target) { WARN("cd: HOME not set"); return; }
+  } else if (!strcmp(target,"-")) {
+    if (!owd) { WARN("cd: no previous directory"); return; }
+    target=owd;
   }
-  if (cwd && chdir(cwd))
-    ERROR("chdir() failed"); // warn
+  char *prev=getcwd(0,0);
+  if (chdir(target)) {
+    WARN("cd: %s: %s",target,strerror(errno));
+    free(prev);
+    return;
+  }
+  free(owd);
+  owd=prev;
 }
 
+BIDEFN(history) {
+  if (builtin_args(r,0)) return;
+  HIST_ENTRY **l=history_list();
+  if (!l) return;
+  for (int i=0; l[i]; i++)
+    printf("%5d  %s\n",history_base+i,l[i]->line);
+}
 
 typedef struct {
   char *s;
@@ -69,6 +88,7 @@ static const Builtin builtins[]={
   BIENTRY(exit),
   BIENTRY(pwd),
   BIENTRY(cd),
+  BIENTRY(history),
   {0,0}
 };
 
@@ -225,6 +245,6 @@ extern void freeCommand(Command command) {
 }
 
 extern void freestateCommand() {
-  if (cwd) free(cwd);
+  // if (cwd) free(cwd);
   if (owd) free(owd);
 }

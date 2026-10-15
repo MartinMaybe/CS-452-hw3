@@ -1,0 +1,3 @@
+pwd extra
+cd /nonexistent
+echo after
