@@ -67,8 +67,6 @@ Test_cd
 Test_cd_dash
 Test_cd_rel
 Test_echo
-Test_history
-Test_history failed
 Test_pipe_basic
 Test_pipe_bg
 Test_pipe_builtin
